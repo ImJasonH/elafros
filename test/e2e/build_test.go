@@ -86,7 +86,7 @@ func TestBuildAndServe(t *testing.T) {
 		t.Fatalf("Failed to get latest Revision: %v", err)
 	}
 	buildName := rev.Spec.BuildName
-	logger.Infof("Latest ready revision is %q", rev.Name)
+	logger.Infof("Latest ready Revision is %q", rev.Name)
 	logger.Infof("Revision's Build is %q", buildName)
 	b, err := clients.Builds.Get(buildName, metav1.GetOptions{})
 	if err != nil {
@@ -105,7 +105,7 @@ func TestBuildFailure(t *testing.T) {
 	// Add test case specific name to its own logger.
 	logger := test.Logger.Named("TestBuildAndServe")
 
-	logger.Infof("Creating a new Route and Configuration with build")
+	logger.Infof("Creating a new Route and Configuration with failing build")
 	names := test.ResourceNames{
 		Config: test.AppendRandomString(configName, logger),
 		Route:  test.AppendRandomString(routeName, logger),
@@ -122,17 +122,16 @@ func TestBuildFailure(t *testing.T) {
 	imagePath := strings.Join([]string{test.Flags.DockerRepo, "helloworld"}, "/")
 	config, err := clients.Configs.Create(test.ConfigurationWithBuild(test.Flags.Namespace, names, build, imagePath))
 	if err != nil {
-		t.Fatalf("Failed to create Route and Configuration with build: %v", err)
+		t.Fatalf("Failed to create Route and Configuration with failing build: %v", err)
 	}
 	if _, err := clients.Routes.Create(test.Route(test.Flags.Namespace, names)); err != nil {
-
-		t.Fatalf("Failed to create Route and Configuration with build: %v", err)
+		t.Fatalf("Failed to create Route and Configuration with failing build: %v", err)
 	}
 
 	test.CleanupOnInterrupt(func() { TearDown(clients, names, logger) }, logger)
 	defer TearDown(clients, names, logger)
 
-	// Get latest Configuration's latest Revision's Build, and check that the Build failed.
+	// Get Configuration's latest Revision's Build, and check that the Build failed.
 	config, err = clients.Configs.Get(config.Name, metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("Failed to get Configuration after it was seen to be live: %v", err)
@@ -141,11 +140,14 @@ func TestBuildFailure(t *testing.T) {
 	if err = test.WaitForRevisionState(clients.Revisions, config.Status.LatestCreatedRevisionName, test.IsRevisionBuildFailed, "RevisionIsBuildFailed"); err != nil {
 		t.Fatalf("The Revision %q was not marked as having a failed build: %v", names.Revision, err)
 	}
+	logger.Infof("Revision is not ready because its build failed.")
 	rev, err := clients.Revisions.Get(config.Status.LatestCreatedRevisionName, metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("Failed to get latest Revision: %v", err)
 	}
 	buildName := rev.Spec.BuildName
+	logger.Infof("Latest created Revision is %q", rev.Name)
+	logger.Infof("Revision's Build is %q", buildName)
 	b, err := clients.Builds.Get(buildName, metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("Failed to get build for latest revision: %v", err)
