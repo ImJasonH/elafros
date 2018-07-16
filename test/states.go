@@ -18,6 +18,8 @@ package test
 import (
 	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
+
 	"github.com/knative/serving/pkg/apis/serving/v1alpha1"
 )
 
@@ -51,6 +53,17 @@ func AllRouteTrafficAtRevision(names ResourceNames) func(r *v1alpha1.Route) (boo
 // or being ready. It will also return false if the type of the condition is unexpected.
 func IsRevisionReady(r *v1alpha1.Revision) (bool, error) {
 	return r.Status.IsReady(), nil
+}
+
+// IsRevisionBuildFailed will check the status conditions of the revision and return
+// true if the revision's build failed. It will return false if the status
+// indicates a state other than build failure, or if the type of the condition
+// is unexpected.
+func IsRevisionBuildFailed(r *v1alpha1.Revision) (bool, error) {
+	if c := r.Status.GetCondition(v1alpha1.RevisionConditionBuildSucceeded); c != nil {
+		return c.Status == corev1.ConditionFalse, nil
+	}
+	return false, nil
 }
 
 // IsServiceReady will check the status conditions of the service and return true if the service is
